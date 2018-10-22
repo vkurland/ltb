@@ -324,6 +324,44 @@ public class LettuceTest {
     }
 
     /**
+     * even simpler version, this reads from a hash and writes every other element to the target set
+     *
+     * THIS TEST PASSES
+     */
+    @Test
+    public void test9() {
+
+        final RedisClient client = RedisClient.create(RedisURI.create("127.0.0.1", 6379));
+
+        try (StatefulRedisConnection<String, String> connection = client.connect()) {
+            final RedisReactiveCommands<String, String> commands = connection.reactive();
+
+            commands.flushall().block();
+
+            Flux.fromStream(IntStream.range(0, 10_000).boxed())
+                    .flatMap(num -> commands.sadd(sourceKey, String.valueOf(num)))
+                    .blockLast(Duration.ofSeconds(10));
+
+            final Long sourceSize = commands.scard(sourceKey).block(Duration.ofSeconds(10));
+            assertNotNull(sourceSize);
+            assertEquals(sourceSize.longValue(), 10_000L);
+
+            commands.smembers(sourceKey)
+                    .map(Integer::parseInt)
+                    .filter(num -> num % 2 == 0)
+                    .concatMap(item -> commands.sadd(targetKey, String.valueOf(item)))
+                    .blockLast(Duration.ofSeconds(10));
+
+            final Long targetCard = commands.scard(targetKey).block(Duration.ofSeconds(10));
+            assertNotNull(targetCard);
+            assertEquals(targetCard.longValue(), 5_000L);
+
+        } finally {
+            client.shutdown();
+        }
+    }
+
+    /**
      * this is a workaround for the case with hash as a source and flatMap()
      */
     @Test

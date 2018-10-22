@@ -1,9 +1,6 @@
 package ltb;
 
-import io.lettuce.core.RedisClient;
-import io.lettuce.core.RedisURI;
-import io.lettuce.core.ScanStream;
-import io.lettuce.core.Value;
+import io.lettuce.core.*;
 import io.lettuce.core.api.StatefulRedisConnection;
 import io.lettuce.core.api.reactive.RedisReactiveCommands;
 import org.testng.annotations.Test;
@@ -339,14 +336,15 @@ public class LettuceTest {
             commands.flushall().block();
 
             Flux.fromStream(IntStream.range(0, 10_000).boxed())
-                    .flatMap(num -> commands.sadd(sourceKey, String.valueOf(num)))
+                    .flatMap(num -> commands.hset(sourceKey, String.valueOf(num), String.valueOf(num)))
                     .blockLast(Duration.ofSeconds(10));
 
-            final Long sourceSize = commands.scard(sourceKey).block(Duration.ofSeconds(10));
+            final Long sourceSize = commands.hlen(sourceKey).block(Duration.ofSeconds(10));
             assertNotNull(sourceSize);
             assertEquals(sourceSize.longValue(), 10_000L);
 
-            commands.smembers(sourceKey)
+            ScanStream.hscan(commands, sourceKey)
+                    .map(KeyValue::getValue)
                     .map(Integer::parseInt)
                     .filter(num -> num % 2 == 0)
                     .concatMap(item -> commands.sadd(targetKey, String.valueOf(item)))

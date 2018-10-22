@@ -323,7 +323,7 @@ public class LettuceTest {
     /**
      * even simpler version, this reads from a hash and writes every other element to the target set
      *
-     * THIS TEST PASSES
+     * THIS TEST FAILS
      */
     @Test
     public void test9() {

@@ -360,6 +360,45 @@ public class LettuceTest {
     }
 
     /**
+     * even simpler version, this reads from a hash and writes every other element to the target set
+     * using flatMap()
+     *
+     * THIS TEST FAILS
+     */
+    @Test
+    public void test10() {
+
+        final RedisClient client = RedisClient.create(RedisURI.create("127.0.0.1", 6379));
+
+        try (StatefulRedisConnection<String, String> connection = client.connect()) {
+            final RedisReactiveCommands<String, String> commands = connection.reactive();
+
+            commands.flushall().block();
+
+            Flux.fromStream(IntStream.range(0, 10_000).boxed())
+                    .flatMap(num -> commands.hset(sourceKey, String.valueOf(num), String.valueOf(num)))
+                    .blockLast(Duration.ofSeconds(10));
+
+            final Long sourceSize = commands.hlen(sourceKey).block(Duration.ofSeconds(10));
+            assertNotNull(sourceSize);
+            assertEquals(sourceSize.longValue(), 10_000L);
+
+            ScanStream.hscan(commands, sourceKey)
+                    .map(KeyValue::getValue)
+                    .map(Integer::parseInt)
+                    .filter(num -> num % 2 == 0)
+                    .flatMap(item -> commands.sadd(targetKey, String.valueOf(item)))
+                    .blockLast(Duration.ofSeconds(10));
+
+            final Long targetCard = commands.scard(targetKey).block(Duration.ofSeconds(10));
+            assertNotNull(targetCard);
+            assertEquals(targetCard.longValue(), 5_000L);
+
+        } finally {
+            client.shutdown();
+        }
+    }
+    /**
      * this is a workaround for the case with hash as a source and flatMap()
      */
     @Test

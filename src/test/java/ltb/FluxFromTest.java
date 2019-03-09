@@ -7,12 +7,12 @@ import io.lettuce.core.api.reactive.RedisReactiveCommands;
 import org.testng.annotations.Test;
 import reactor.core.publisher.Flux;
 
-import java.util.Collections;
-import java.util.List;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import static org.testng.Assert.*;
@@ -68,6 +68,78 @@ public class FluxFromTest {
 
             assertNotNull(result3);
             assertEquals((int)result3, 12345);
+
+        } finally {
+            client.shutdown();
+        }
+    }
+
+    @Test
+    public void test3() throws InterruptedException, ExecutionException, TimeoutException {
+
+        Map<Integer, Integer> data = IntStream.range(0, 10).boxed().collect(Collectors.toMap(o -> o, o -> o*o));
+
+        final RedisClient client = RedisClient.create(RedisURI.create("127.0.0.1", 6379));
+
+        try (StatefulRedisConnection<String, String> connection = client.connect()) {
+            final RedisReactiveCommands<String, String> commands = connection.reactive();
+
+            commands.flushall().block();
+
+            CompletableFuture<Long> future = Flux.fromStream(IntStream.range(0, 10_000).boxed())
+                    .map(num -> Optional.ofNullable(data.get(num)))
+                    .filter(Optional::isPresent)
+                    .map(Optional::get)
+                    .count()
+                    .toFuture();
+
+            Long result1 = future.get(10, TimeUnit.SECONDS);
+            assertNotNull(result1);
+            assertEquals((long)result1, 10);
+
+            List<Integer> empty = Collections.emptyList();
+
+            future = Flux.fromIterable(empty)
+                    .map(num -> Optional.ofNullable(data.get(num)))
+                    .filter(Optional::isPresent)
+                    .map(Optional::get)
+                    .count()
+                    .toFuture();
+
+            Long result2 = future.get(10, TimeUnit.SECONDS);
+
+            assertNotNull(result2);
+            assertEquals((long)result2, 0);
+
+            // adding onEmpty fallback
+
+            future = Flux.fromIterable(empty)
+                    .defaultIfEmpty(12345)
+                    .map(num -> Optional.ofNullable(data.get(num)))
+                    .filter(Optional::isPresent)
+                    .map(Optional::get)
+                    .count()
+                    .toFuture();
+
+            Long result3 = future.get(10, TimeUnit.SECONDS);
+
+            assertNotNull(result3);
+            assertEquals((long)result3, 0);  // note
+
+            // defaultIfEmpty() in a different place
+
+            future = Flux.fromIterable(empty)
+                    .map(num -> Optional.ofNullable(data.get(num)))
+                    .filter(Optional::isPresent)
+                    .map(Optional::get)
+                    .defaultIfEmpty(12345)
+                    .count()
+                    .toFuture();
+
+            Long result4 = future.get(10, TimeUnit.SECONDS);
+
+            assertNotNull(result4);
+            assertEquals((long)result4, 1);  // note
 
         } finally {
             client.shutdown();

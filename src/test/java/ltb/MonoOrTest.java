@@ -84,4 +84,33 @@ public class MonoOrTest {
         }
     }
 
+    /**
+     * this test succeeds
+     */
+    @Test
+    public void test4() {
+
+        final RedisClient client = RedisClient.create(RedisURI.create("127.0.0.1", 6379));
+
+        try (StatefulRedisConnection<String, String> connection = client.connect()) {
+            final RedisReactiveCommands<String, String> commands = connection.reactive();
+
+            commands.flushall().block();
+
+            commands.set(targetKey, "TEST")
+                    .block();
+
+            assertNull(cache.get(targetKey));
+
+            String result = Mono.justOrEmpty(cache.get(targetKey))
+                    .switchIfEmpty(commands.get(targetKey))
+                    .block();
+
+            assertEquals(result, "TEST");
+
+        } finally {
+            client.shutdown();
+        }
+    }
+
 }

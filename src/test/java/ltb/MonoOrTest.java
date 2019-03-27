@@ -5,6 +5,7 @@ import io.lettuce.core.RedisURI;
 import io.lettuce.core.api.StatefulRedisConnection;
 import io.lettuce.core.api.reactive.RedisReactiveCommands;
 import org.testng.annotations.Test;
+import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import java.util.Map;
@@ -25,6 +26,9 @@ public class MonoOrTest {
 
     private final Map<String, String> cache = new ConcurrentHashMap();
 
+    /**
+     * this test fails
+     */
     @Test
     public void test2() {
 
@@ -43,6 +47,35 @@ public class MonoOrTest {
             String result = Mono.justOrEmpty(cache.get(targetKey))
                     .or(commands.get(targetKey))
                     .block();
+
+            assertEquals(result, "TEST");
+
+        } finally {
+            client.shutdown();
+        }
+    }
+
+    /**
+     * this test succeeds
+     */
+    @Test
+    public void test3() {
+
+        final RedisClient client = RedisClient.create(RedisURI.create("127.0.0.1", 6379));
+
+        try (StatefulRedisConnection<String, String> connection = client.connect()) {
+            final RedisReactiveCommands<String, String> commands = connection.reactive();
+
+            commands.flushall().block();
+
+            commands.set(targetKey, "TEST")
+                    .block();
+
+            assertNull(cache.get(targetKey));
+
+            String result = Flux.concat(Mono.justOrEmpty(cache.get(targetKey)), commands.get(targetKey))
+                    .limitRequest(1)
+                    .blockLast();
 
             assertEquals(result, "TEST");
 

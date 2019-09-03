@@ -43,6 +43,7 @@ public class ReactiveQueueAdapter<T> implements Consumer<FluxSink<T>> {
         sink.onRequest(requested -> {
             demandLock.lock();
             try {
+                System.out.println("RQA demand set to " + requested);
                 demand.set(requested);
                 if (requested > maxDemand) maxDemand = requested;
                 if (requested > 0) nonZeroDemand.signalAll();

@@ -21,7 +21,6 @@ import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Random;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.Semaphore;
@@ -37,7 +36,6 @@ public class RedisFluxPerformance {
 
     private ClientResources clientResources;
     private RedisClient client;
-    private Random random = new Random(31416);
 
     @BeforeClass
     public void setUp() {
@@ -180,16 +178,19 @@ public class RedisFluxPerformance {
                 Tuples.of("C", sender -> (flux -> flux.concatMap(sender))),
                 Tuples.of("F", sender -> (flux -> flux.flatMap(sender))));
 
+        final int nTrials = 10;
 
-        nItemsKs.forEach(nItemsK ->
-                fluxTypes.forEach(fluxType ->
-                        connectionCounts.forEach(connCount ->
-                                mappers.forEach(mapper -> {
-                                    final String test = fluxType.getT1() + connCount + mapper.getT1();
-                                    final Stopwatch sw = multiTest(test, nItemsK * 1024, fluxType.getT2(), connCount, mapper.getT2());
-                                    System.out.format("%d,%s,%d,%s,%d\n", nItemsK * 1024, fluxType.getT1(), connCount, mapper.getT1(), sw.elapsed(TimeUnit.MILLISECONDS));
-                                    //System.out.format("%dk done in %s : %f/sec\n", nItemsK, sw, 1024. * nItemsK * 1e9f / sw.elapsed(TimeUnit.NANOSECONDS));
-                                }))));
+        for (int i = 0; i < nTrials; ++i) {
+            nItemsKs.forEach(nItemsK ->
+                    fluxTypes.forEach(fluxType ->
+                            connectionCounts.forEach(connCount ->
+                                    mappers.forEach(mapper -> {
+                                        final String test = fluxType.getT1() + connCount + mapper.getT1();
+                                        final Stopwatch sw = multiTest(test, nItemsK * 1024, fluxType.getT2(), connCount, mapper.getT2());
+                                        System.out.format("%d,%s,%d,%s,%d\n", nItemsK * 1024, fluxType.getT1(), connCount, mapper.getT1(), sw.elapsed(TimeUnit.MILLISECONDS));
+                                        //System.out.format("%dk done in %s : %f/sec\n", nItemsK, sw, 1024. * nItemsK * 1e9f / sw.elapsed(TimeUnit.NANOSECONDS));
+                                    }))));
+        }
     }
 
     @Test
@@ -238,9 +239,7 @@ public class RedisFluxPerformance {
                 .checkpoint("mvar-stubs-storage-2-send-1")
                 .map(tuple3 -> stub)
                 //.doOnNext(this::postSend)
-                .doOnError(e -> {
-                    fail("send", e);
-                })
+                .doOnError(e -> fail("send", e))
                 .checkpoint("mvar-stubs-storage-2-send-2");
     }
 

@@ -171,7 +171,7 @@ public class RedisFluxPerformance {
      * Produce output in CSV for analysis.
      */
 
-    @Test
+    @Test(enabled=false)
     public void GridTest() {
         List<Tuple2<String, Function<BlockingQueue<MVarStub>, Flux<MVarStub>>>> fluxTypes = Arrays.asList(
                 Tuples.of("P", Flux::fromIterable),

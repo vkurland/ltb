@@ -13,6 +13,7 @@ import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+import reactor.core.scheduler.Schedulers;
 import reactor.util.function.Tuple2;
 import reactor.util.function.Tuples;
 
@@ -106,6 +107,7 @@ public class RedisFluxPerformance {
                 //.concatMap(sender)
 //                .onErrorContinue((throwable, o) ->
 //                        log.error("Error in write queue reactive chain: object=" + o + ", error=", throwable))
+                .subscribeOn(Schedulers.newSingle("flux-perf-subscription"))
                 .compose(mapper.apply(sender))
                 //.concatMap(sender)
                 .take(nItems)
@@ -129,7 +131,9 @@ public class RedisFluxPerformance {
 
     @Test
     public void ReactiveQueue1ConnConcat() {
-        multiTest("RQ1C", 64 * 1024, ReactiveQueueAdapter::of, 1, sender -> (flux -> flux.concatMap(sender)));
+        final int n = 8 * 1024;
+        final Stopwatch sw = multiTest("RQ1C", n, ReactiveQueueAdapter::of, 1, sender -> (flux -> flux.concatMap(sender)));
+        System.out.println(n + " in " + sw);
     }
 
     @Test
@@ -144,12 +148,12 @@ public class RedisFluxPerformance {
 
     @Test
     public void PlainQueue1ConnFlat() {
-        multiTest("PQ1F", 64 * 1024, Flux::fromIterable, 1, sender -> (flux -> flux.flatMap(sender)));
+        multiTest("PQ1F", 8 * 1024, Flux::fromIterable, 1, sender -> (flux -> flux.flatMap(sender)));
     }
 
     @Test
     public void ReactiveQueue1ConnFlat() {
-        multiTest("RQ1F", 64 * 1024, ReactiveQueueAdapter::of, 1, sender -> (flux -> flux.flatMap(sender)));
+        multiTest("RQ1F", 8 * 1024, ReactiveQueueAdapter::of, 1, sender -> (flux -> flux.flatMap(sender)));
     }
 
     @Test
@@ -169,7 +173,6 @@ public class RedisFluxPerformance {
 
     @Test
     public void GridTest() {
-        List<Integer> nItemsKs = Arrays.asList(16, 32, 64, 128);
         List<Tuple2<String, Function<BlockingQueue<MVarStub>, Flux<MVarStub>>>> fluxTypes = Arrays.asList(
                 Tuples.of("P", Flux::fromIterable),
                 Tuples.of("R", ReactiveQueueAdapter::of));
@@ -179,17 +182,17 @@ public class RedisFluxPerformance {
                 Tuples.of("F", sender -> (flux -> flux.flatMap(sender))));
 
         final int nTrials = 10;
+        final int nItemsK = 64;
 
         for (int i = 0; i < nTrials; ++i) {
-            nItemsKs.forEach(nItemsK ->
                     fluxTypes.forEach(fluxType ->
                             connectionCounts.forEach(connCount ->
                                     mappers.forEach(mapper -> {
                                         final String test = fluxType.getT1() + connCount + mapper.getT1();
                                         final Stopwatch sw = multiTest(test, nItemsK * 1024, fluxType.getT2(), connCount, mapper.getT2());
-                                        System.out.format("%d,%s,%d,%s,%d\n", nItemsK * 1024, fluxType.getT1(), connCount, mapper.getT1(), sw.elapsed(TimeUnit.MILLISECONDS));
+                                        System.out.format("%s,%d,%s,%d\n", fluxType.getT1(), connCount, mapper.getT1(), sw.elapsed(TimeUnit.MILLISECONDS));
                                         //System.out.format("%dk done in %s : %f/sec\n", nItemsK, sw, 1024. * nItemsK * 1e9f / sw.elapsed(TimeUnit.NANOSECONDS));
-                                    }))));
+                                    })));
         }
     }
 
@@ -242,6 +245,4 @@ public class RedisFluxPerformance {
                 .doOnError(e -> fail("send", e))
                 .checkpoint("mvar-stubs-storage-2-send-2");
     }
-
-
 }

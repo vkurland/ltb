@@ -3,6 +3,8 @@ package ltb;
 import com.google.common.base.Stopwatch;
 import io.lettuce.core.ClientOptions;
 import io.lettuce.core.RedisClient;
+import io.lettuce.core.RedisFuture;
+import io.lettuce.core.api.StatefulConnection;
 import io.lettuce.core.api.StatefulRedisConnection;
 import io.lettuce.core.api.reactive.RedisReactiveCommands;
 import io.lettuce.core.resource.ClientResources;
@@ -13,6 +15,7 @@ import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+import reactor.core.publisher.WorkQueueProcessor;
 import reactor.core.scheduler.Schedulers;
 import reactor.util.function.Tuple2;
 import reactor.util.function.Tuples;
@@ -26,6 +29,7 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
@@ -113,12 +117,12 @@ public class RedisFluxPerformance {
                 .take(nItems)
                 .subscribe(
                         stub -> {
+                            semaphore.release();
                         },
-                        t -> fail("subscription", t),
-                        semaphore::release
+                        t -> fail("subscription", t)
                 );
 
-        semaphore.acquireUninterruptibly();
+        semaphore.acquireUninterruptibly(nItems);
         sw.stop();
         rrPool.shutdown();
         return sw;
@@ -162,8 +166,17 @@ public class RedisFluxPerformance {
     }
 
     @Test
+    public void PlainQueue4ConnFlat() {
+        for (int i = 0; i < 10; ++i) {
+            System.out.println(
+                    multiTest("PQ4F", 128 * 1024, Flux::fromIterable, 2, sender -> (flux -> flux.flatMap(sender))));
+        }
+    }
+
+    @Test
     public void ReactiveQueue2ConnFlat() {
-        multiTest("RQ2F", 64 * 1024, ReactiveQueueAdapter::of, 2, sender -> (flux -> flux.flatMap(sender)));
+        System.out.println(
+                multiTest("RQ2F", 64 * 1024, ReactiveQueueAdapter::of, 2, sender -> (flux -> flux.flatMap(sender))));
     }
 
     /**
@@ -194,6 +207,59 @@ public class RedisFluxPerformance {
                                         //System.out.format("%dk done in %s : %f/sec\n", nItemsK, sw, 1024. * nItemsK * 1e9f / sw.elapsed(TimeUnit.NANOSECONDS));
                                     })));
         }
+    }
+
+    @Test
+    public void workQProcessorTest() {
+        for (int i = 0; i < 10; ++i) {
+            System.out.println(workQProcessor());
+        }
+    }
+
+    public Stopwatch workQProcessor() {
+        final int nItems = 64*1024;
+        final int nConnections = 4;
+        final String description = "workq";
+
+        final Semaphore semaphore = new Semaphore(0);
+        final List<MVarStub> stubs = Stream
+                .generate(() -> MVarStub.newRandom(512, 16, 4096))
+                .limit(nItems)
+                .collect(Collectors.toList());
+
+        final MVarStub stop = new MVarStub();
+        stop.varName = "STOP";
+
+        WorkQueueProcessor<MVarStub> wq = WorkQueueProcessor.<MVarStub>builder().build();
+
+        final List<StatefulRedisConnection<String, String>> conns = new ArrayList<>();
+        final List<AtomicInteger> counters = new ArrayList<>();
+
+        for (int i = 0; i < nConnections; ++i) {
+            final int index = i;
+            final StatefulRedisConnection<String, String> conn = client.connect();
+            conns.add(conn);
+            counters.add(new AtomicInteger(0));
+            wq.takeWhile(stub -> !stub.varName.equals("STOP")).subscribe(
+                    stub -> {
+                        counters.get(index).incrementAndGet();
+                        final RedisFuture<Boolean> hset = conn.async().hset(String.format("%s:%s", description, stub.varName), stub.triplet(), stub.serialize());
+                        hset.thenAccept(b -> {
+                            semaphore.release();
+                        });
+                    },
+                    t -> fail("work queue processor " + index, t)
+            );
+        }
+
+        for (int i = 0; i < nConnections; ++i) stubs.add(stop);
+        Stopwatch sw = Stopwatch.createStarted();
+        stubs.forEach(wq::onNext);
+        semaphore.acquireUninterruptibly(nItems);
+        sw.stop();
+        wq.shutdown();
+        conns.forEach(StatefulConnection::close);
+        return sw;
     }
 
     @Test

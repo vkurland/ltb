@@ -25,10 +25,7 @@ import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.Semaphore;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -210,14 +207,14 @@ public class RedisFluxPerformance {
     }
 
     @Test
-    public void workQProcessorTest() {
+    public void workQProcessorTest() throws InterruptedException {
         for (int i = 0; i < 10; ++i) {
             System.out.println(workQProcessor());
         }
     }
 
-    public Stopwatch workQProcessor() {
-        final int nItems = 64*1024;
+    public Stopwatch workQProcessor() throws InterruptedException {
+        final int nItems = 1*1024*1024;
         final int nConnections = 4;
         final String description = "workq";
 
@@ -242,11 +239,22 @@ public class RedisFluxPerformance {
             counters.add(new AtomicInteger(0));
             wq.takeWhile(stub -> !stub.varName.equals("STOP")).subscribe(
                     stub -> {
+                        //Semaphore sem = new Semaphore(0);
                         counters.get(index).incrementAndGet();
                         final RedisFuture<Boolean> hset = conn.async().hset(String.format("%s:%s", description, stub.varName), stub.triplet(), stub.serialize());
                         hset.thenAccept(b -> {
+                            //sem.release();
                             semaphore.release();
                         });
+                        //sem.acquireUninterruptibly();
+//                        try {
+//                            conn.async().hset(String.format("%s:%s", description, stub.varName), stub.triplet(), stub.serialize()).get();
+//                        } catch (final InterruptedException e) {
+//                            return;
+//                        } catch (final ExecutionException e) {
+//                            throw new RuntimeException("foo", e);
+//                        }
+//                        semaphore.release();
                     },
                     t -> fail("work queue processor " + index, t)
             );

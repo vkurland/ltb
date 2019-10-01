@@ -63,7 +63,59 @@ public class CancelAndTerminateTest {
 
             commands.flushall().block();
 
-            Flux.fromStream(IntStream.range(0, 5).boxed())
+            Flux.range(0, 5)
+                    .flatMap(num -> useCancel(commands, counter), 1)
+                    .blockLast(Duration.ofSeconds(20));
+
+        } finally {
+            client.shutdown();
+        }
+
+        assertEquals(counter.get(), 5); // expect 5 because doOnCancel is never called
+    }
+
+    /**
+     * this uses a custom mono to balance increment/decrement of counter.  This works so counter
+     * has value 0 at the end.
+     */
+    @Test
+    public void testNormalTermination2b() {
+
+        final RedisClient client = RedisClient.create(RedisURI.create("127.0.0.1", 6379));
+        AtomicInteger counter = new AtomicInteger(0);
+
+        try (StatefulRedisConnection<String, String> connection = client.connect()) {
+            final RedisReactiveCommands<String, String> commands = connection.reactive();
+
+            commands.flushall().block();
+
+            Flux.range(0, 5)
+                    .flatMap(num -> useDispose(commands, counter), 1)
+                    .blockLast(Duration.ofSeconds(20));
+
+        } finally {
+            client.shutdown();
+        }
+
+        assertEquals(counter.get(), 0); // expect 5 because doOnCancel is never called
+    }
+
+    /**
+     * this calls doOnCancel() in the downstream Mono. In the end, the counter has value 5 because
+     * doOnCancel() is never called
+     */
+    @Test
+    public void testNormalTermination3() {
+
+        final RedisClient client = RedisClient.create(RedisURI.create("127.0.0.1", 6379));
+        AtomicInteger counter = new AtomicInteger(0);
+
+        try (StatefulRedisConnection<String, String> connection = client.connect()) {
+            final RedisReactiveCommands<String, String> commands = connection.reactive();
+
+            commands.flushall().block();
+
+            Flux.range(0, 5)
                     .flatMap(num -> useCancel(commands, counter), 1)
                     .blockLast(Duration.ofSeconds(20));
 
@@ -79,7 +131,7 @@ public class CancelAndTerminateTest {
      * 0 because doOnTerminate() is called every time
      */
     @Test
-    public void testNormalTermination3() {
+    public void testNormalTermination3b() {
 
         final RedisClient client = RedisClient.create(RedisURI.create("127.0.0.1", 6379));
         AtomicInteger counter = new AtomicInteger(0);
@@ -157,6 +209,31 @@ public class CancelAndTerminateTest {
     }
 
     @Test
+    public void testTimeout2b() {
+
+        final RedisClient client = RedisClient.create(RedisURI.create("127.0.0.1", 6379));
+        AtomicInteger counter = new AtomicInteger(0);
+
+        try (StatefulRedisConnection<String, String> connection = client.connect()) {
+            final RedisReactiveCommands<String, String> commands = connection.reactive();
+
+            commands.flushall().block();
+
+            Flux.fromStream(IntStream.range(0, 5).boxed())
+                    .flatMap(num -> useDispose(commands, counter), 1)
+                    .blockLast(Duration.ofMillis(2100));
+
+        } catch (final Exception e) {
+            // timeout
+        } finally {
+            client.shutdown();
+        }
+
+        // balanced counting works
+        assertEquals(counter.get(), 0);
+    }
+
+    @Test
     public void testTimeout3() {
 
         final RedisClient client = RedisClient.create(RedisURI.create("127.0.0.1", 6379));
@@ -198,6 +275,23 @@ public class CancelAndTerminateTest {
                 .flatMap(l -> commands.sadd(key, String.valueOf(l)))
                 .collectList()
                 .doOnCancel(counter::decrementAndGet);
+    }
+
+    private Mono<List<Long>> useDispose(final RedisReactiveCommands<String, String> commands, final AtomicInteger counter) {
+        String key = "CancelAndTerminateTest.set";
+
+        return balancedCounter(counter)
+                .flatMapMany(l -> Flux.interval(Duration.ofMillis(10)))
+                .take(100)
+                .flatMap(l -> commands.sadd(key, String.valueOf(l)))
+                .collectList();
+    }
+
+    private Mono<Long> balancedCounter(final AtomicInteger counter) {
+        return Mono.create(s -> {
+            s.onDispose(counter::decrementAndGet);
+            s.success((long) counter.incrementAndGet());
+        });
     }
 
     private Mono<List<Long>> useBoth(final RedisReactiveCommands<String, String> commands, final AtomicInteger counter) {

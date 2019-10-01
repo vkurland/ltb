@@ -71,7 +71,7 @@ public class RedisFluxPerformance {
      * a flux, and produces a flux. Here we simplify by having the input and output types
      * the same, so the type of mapper is:
      * <p>
-     * (A -> Flux&lt;A&gt;) -> Flux&lt;A&gt; -> Flux&lt;A&gt;.
+     * (A &rarr; Flux&lt;A&gt;) &rarr; Flux&lt;A&gt; &rarr; Flux&lt;A&gt;.
      * <p>
      * Such a function can be supplied to a compose step in a reactive chain.
      *
@@ -227,7 +227,7 @@ public class RedisFluxPerformance {
         final MVarStub stop = new MVarStub();
         stop.varName = "STOP";
 
-        WorkQueueProcessor<MVarStub> wq = WorkQueueProcessor.<MVarStub>builder().build();
+        WorkQueueProcessor<MVarStub> wq = WorkQueueProcessor.<MVarStub>builder().bufferSize(1<<10).share(true).build();
 
         final List<StatefulRedisConnection<String, String>> conns = new ArrayList<>();
         final List<AtomicInteger> counters = new ArrayList<>();
@@ -262,7 +262,9 @@ public class RedisFluxPerformance {
 
         for (int i = 0; i < nConnections; ++i) stubs.add(stop);
         Stopwatch sw = Stopwatch.createStarted();
-        stubs.forEach(wq::onNext);
+        Flux.fromIterable(stubs).subscribe(wq);
+        //stubs.forEach(wq::onNext);
+        System.out.println("q filled after " + sw);
         semaphore.acquireUninterruptibly(nItems);
         sw.stop();
         wq.shutdown();

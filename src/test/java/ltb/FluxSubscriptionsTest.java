@@ -33,33 +33,21 @@ public class FluxSubscriptionsTest {
      */
     @Test
     public void test1() {
+        Flux<Integer> input = Flux.fromStream(IntStream.range(0, 10_000).boxed());
 
-        final RedisClient client = RedisClient.create(RedisURI.create("127.0.0.1", 6379));
+        Flux<Integer> f1 = input
+                .sample(Duration.ofMillis(100))
+                .doOnNext(item -> System.out.println(item));
 
-        try (StatefulRedisConnection<String, String> connection = client.connect()) {
-            final RedisReactiveCommands<String, String> commands = connection.reactive();
+        Mono<Long> f2 = input
+                .map(item -> item * 2)
+                .count();
 
-            commands.flushall().block();
-
-            Flux<Integer> input = Flux.fromStream(IntStream.range(0, 10_000).boxed());
-
-            Flux<Integer> f1 = input
-                    .sample(Duration.ofMillis(100))
-                    .doOnNext(item -> System.out.println(item));
-
-            Mono<Long> f2 = input
-                    .map(item -> item * 2)
-                    .count();
-
-            f1.subscribe();
-            Long total = f2.block();
-
-            assertNotNull(total);
-            assertEquals((long)total, 10_000);
-
-        } finally {
-            client.shutdown();
-        }
+        f1.subscribe();
+        assertThrows(f2::block);
+//
+//        assertNotNull(total);
+//        assertEquals((long)total, 10_000);
     }
 
     @Test

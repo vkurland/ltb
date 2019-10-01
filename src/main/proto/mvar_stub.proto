@@ -1,0 +1,22 @@
+syntax = "proto2";
+
+package ltb.mvar_stub;
+
+// option java_package = "ltb";
+
+message MVarStubProto {
+    required string varName = 1;
+    required string compName = 2;
+    required int32 devId = 3;
+    required int64 index = 4;
+
+    optional string oid = 5 [default = ""];
+    optional int32 dataTypeInt = 6 [default = 0];
+    optional int32 dataSourceClassInt = 7 [default = 0];
+    optional double sensorScale = 8 [default = 1.0];
+
+    optional string tags = 9 [default = ""];
+    optional bool pollingVar = 10 [default = false];
+    optional bool stringType = 11 [default = false];
+
+}

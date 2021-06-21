@@ -14,15 +14,17 @@
     <orderEntry type="inheritedJdk" />
     <orderEntry type="sourceFolder" forTests="false" />
     <orderEntry type="library" name="Bundled Protobuf Distribution" level="application" />
-    <orderEntry type="library" name="Maven: io.lettuce:lettuce-core:5.1.7.RELEASE" level="project" />
-    <orderEntry type="library" name="Maven: io.netty:netty-common:4.1.36.Final" level="project" />
-    <orderEntry type="library" name="Maven: io.netty:netty-handler:4.1.36.Final" level="project" />
-    <orderEntry type="library" name="Maven: io.netty:netty-buffer:4.1.36.Final" level="project" />
-    <orderEntry type="library" name="Maven: io.netty:netty-codec:4.1.36.Final" level="project" />
-    <orderEntry type="library" name="Maven: io.netty:netty-transport:4.1.36.Final" level="project" />
-    <orderEntry type="library" name="Maven: io.netty:netty-resolver:4.1.36.Final" level="project" />
-    <orderEntry type="library" name="Maven: io.projectreactor:reactor-core:3.2.8.RELEASE" level="project" />
-    <orderEntry type="library" name="Maven: org.reactivestreams:reactive-streams:1.0.2" level="project" />
+    <orderEntry type="library" name="Maven: io.projectreactor:reactor-core:3.3.10.RELEASE" level="project" />
+    <orderEntry type="library" name="Maven: org.reactivestreams:reactive-streams:1.0.3" level="project" />
+    <orderEntry type="library" name="Maven: io.projectreactor.addons:reactor-extra:3.3.3.RELEASE" level="project" />
+    <orderEntry type="library" name="Maven: io.projectreactor:reactor-tools:3.3.5.RELEASE" level="project" />
+    <orderEntry type="library" name="Maven: io.lettuce:lettuce-core:5.2.0.RELEASE" level="project" />
+    <orderEntry type="library" name="Maven: io.netty:netty-common:4.1.42.Final" level="project" />
+    <orderEntry type="library" name="Maven: io.netty:netty-handler:4.1.42.Final" level="project" />
+    <orderEntry type="library" name="Maven: io.netty:netty-buffer:4.1.42.Final" level="project" />
+    <orderEntry type="library" name="Maven: io.netty:netty-codec:4.1.42.Final" level="project" />
+    <orderEntry type="library" name="Maven: io.netty:netty-transport:4.1.42.Final" level="project" />
+    <orderEntry type="library" name="Maven: io.netty:netty-resolver:4.1.42.Final" level="project" />
     <orderEntry type="library" name="Maven: commons-codec:commons-codec:1.13" level="project" />
     <orderEntry type="library" name="Maven: com.google.protobuf:protobuf-java:3.7.1" level="project" />
     <orderEntry type="library" name="Maven: com.google.guava:guava:28.1-jre" level="project" />
@@ -37,6 +39,7 @@
     <orderEntry type="library" name="Maven: commons-io:commons-io:2.4" level="project" />
     <orderEntry type="library" scope="RUNTIME" name="Maven: org.slf4j:slf4j-log4j12:1.7.0" level="project" />
     <orderEntry type="library" scope="RUNTIME" name="Maven: org.slf4j:slf4j-api:1.7.0" level="project" />
+    <orderEntry type="library" name="Maven: org.apache.commons:commons-math3:3.3" level="project" />
     <orderEntry type="library" name="Maven: log4j:log4j:1.2.17" level="project" />
     <orderEntry type="library" name="Maven: org.testng:testng:6.11" level="project" />
     <orderEntry type="library" name="Maven: com.beust:jcommander:1.64" level="project" />

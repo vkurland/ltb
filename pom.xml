@@ -38,10 +38,30 @@
     </build>
 
     <dependencies>
+        <!-- https://mvnrepository.com/artifact/io.projectreactor/reactor-core -->
+        <dependency>
+            <groupId>io.projectreactor</groupId>
+            <artifactId>reactor-core</artifactId>
+            <version>3.3.10.RELEASE</version>
+        </dependency>
+
+        <dependency>
+            <groupId>io.projectreactor.addons</groupId>
+            <artifactId>reactor-extra</artifactId>
+            <version>3.3.3.RELEASE</version>
+        </dependency>
+
+        <!-- thisis for ReactorDebugAgent -->
+        <dependency>
+            <groupId>io.projectreactor</groupId>
+            <artifactId>reactor-tools</artifactId>
+            <version>3.3.5.RELEASE</version>
+        </dependency>
+
         <dependency>
             <groupId>io.lettuce</groupId>
             <artifactId>lettuce-core</artifactId>
-            <version>5.1.7.RELEASE</version>
+            <version>5.2.0.RELEASE</version>
         </dependency>
 
         <dependency>
@@ -86,6 +106,13 @@
             <version>1.7.0</version>
             <scope>runtime</scope>
         </dependency>
+
+        <dependency>
+            <groupId>org.apache.commons</groupId>
+            <artifactId>commons-math3</artifactId>
+            <version>3.3</version>
+        </dependency>
+
 
         <!-- log4j and dependencies ================== -->
 

@@ -1,3 +1,9 @@
+/*
+ * Copyright (c) 2019 Happy Gears, Inc.
+ * author: colin
+ * Date: 3/20/2019
+ *
+ */
 package ltb;
 
 import com.google.common.annotations.VisibleForTesting;
@@ -130,4 +136,3 @@ public class ReactiveQueueAdapter<T> implements Consumer<FluxSink<T>> {
     @VisibleForTesting
     void waitForExit() { exited.acquireUninterruptibly(); }
 }
-
